@@ -19,6 +19,15 @@ task smoke(type: Test) {
     include 'smoke/**'
 }
 
+task apiCompatibility(type: Test) {
+    description = "Task to run api compatbility tests"
+    testLogging {
+        exceptionFormat = 'full'
+    }
+    jvmArgs = systemPropsFromGradle()
+    include '**/contracttests/**'
+}
+
 task e2e(type: Test) {
     description = "Task to run end to end tests"
     testLogging {
@@ -32,27 +41,35 @@ task deploy(dependsOn: 'publish') {
     description = "Abstraction over publishing artifacts to Artifactory / Nexus"
 }
 
-task groupId << {
-    println projectGroupId
+task groupId {
+    doLast {
+        println projectGroupId
+    }
 }
 groupId.description = "Task to retrieve Group ID"
 
-task artifactId << {
-    println projectArtifactId
+task artifactId {
+    doLast {
+        println projectArtifactId
+    }
 }
 artifactId.description = "Task to retrieve Artifact ID"
 
-task currentVersion << {
-    println projectVersion
+task currentVersion {
+    doLast {
+        println projectVersion
+    }
 }
 currentVersion.description = "Task to retrieve version"
 
-task stubIds << {
-    println stubrunnerIds
+task stubIds {
+    doLast {
+        println stubrunnerIds
+    }
 }
 stubIds.description = "Task to retrieve Stub Runner IDS"
 
-[test, smoke, e2e, deploy, groupId, artifactId, currentVersion, stubIds].each {
+[test, apiCompatibility, smoke, e2e, deploy, groupId, artifactId, currentVersion, stubIds].each {
     it.group = "Pipeline"
 }
 

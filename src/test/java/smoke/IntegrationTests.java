@@ -2,15 +2,16 @@ package smoke;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.awaitility.Awaitility;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.github.GithubData;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.web.client.RestTemplate;
@@ -31,49 +32,33 @@ public class IntegrationTests {
 
 	@Value("${stubrunner.url}") String stubRunnerUrl;
 	@Value("${application.url}") String applicationUrl;
+	@Value("${test.timeout:60}") Long timeout;
 
 	RestTemplate restTemplate = new RestTemplate();
 
 	@Test
 	public void shouldStoreAMessageWhenGithubDataWasReceivedViaMessaging() {
-		final Integer countOfEntries = countGithubData();
-		log.info("Initial count is [" + countOfEntries + "]");
-		log.info("Triggering message by sending request to [" + stubRunnerUrl + "]");
-		ResponseEntity<Map> response = triggerMessage();
-		then(response.getStatusCode().is2xxSuccessful()).isTrue();
-		log.info("Triggered additional message");
+		Awaitility.await().atMost(this.timeout, TimeUnit.SECONDS).untilAsserted(() -> {
+			final Integer countOfEntries = countGithubData();
+			log.info("Initial count is [" + countOfEntries + "]");
 
-		log.info("Awaiting proper count of github data");
-		await().until(() -> countGithubData() > countOfEntries);
-	}
+			ResponseEntity<Map> response = triggerMessage();
+			then(response.getStatusCode().is2xxSuccessful()).isTrue();
+			log.info("Triggered additional message");
 
-	@Test
-	public void shouldStoreAMessageWhenGithubDataWasReceivedFromServiceDiscovery() {
-		final Integer countOfEntries = countGithubData();
-		log.info("Initial count is [" + countOfEntries + "]");
-		log.info("Sending request to [" + applicationUrl + "]");
-
-		ResponseEntity<GithubData> response = callData();
-		then(response.getStatusCode().is2xxSuccessful()).isTrue();
-		then(response.getBody()).isNotNull();
-
-		log.info("Awaiting proper count of github data");
-		await().until(() -> countGithubData() > countOfEntries);
+			log.info("Awaiting proper count of github data");
+			await().until(() -> countGithubData() > countOfEntries);
+		});
 	}
 
 	private ResponseEntity<Map> triggerMessage() {
 		return this.restTemplate.postForEntity("http://" +
-				this.stubRunnerUrl + "/triggers/hook_created_v2", "", Map.class);
-	}
-
-	private ResponseEntity<GithubData> callData() {
-		return this.restTemplate.getForEntity("http://" +
-				this.applicationUrl + "/data", GithubData.class);
+				this.stubRunnerUrl + "/triggers/issue_created_v2", "", Map.class);
 	}
 
 	private Integer countGithubData() {
 		Integer response = this.restTemplate
-				.getForObject("http://" + this.applicationUrl + "/count", Integer.class);
+				.getForObject("http://" + this.applicationUrl + "/issues/count", Integer.class);
 		log.info("Received response [" + response + "]");
 		return response;
 	}
